@@ -98,3 +98,27 @@ decomposes downstream into that part's pattern atoms (rhythm + note_path), so
 this is strictly more informative than pattern-type scoping, and the generic
 `scopes: list[str]` field needs no change. Other clients may still use
 pattern-type scopes.
+
+## D11 — Validation by controlled recovery experiments, not manual tinkering (2026-07-07)
+
+Julian: don't hand-tinker with wont; run STRUCTURED experiments. Inject
+feedback that pushes toward a PREDICTED outcome and measure how the recovered
+biases correlate. This is the learner's primary validation method: fabricate
+labeled runs with a known synthetic preference (Wend's determinism makes this
+cheap — vary one parameter across hundreds of runs, apply a known utility over
+it), train, and verify the learner recovers the planted preference before it's
+ever trusted on real ears. The recovery harness is the FIRST thing the learner
+phase builds. Complements the synthetic-example smoke test already in the
+scaffold.
+
+## D12 — Per-part scoping is an optional PRIOR, not the mechanism (2026-07-07)
+
+Julian's own pushback: splitting wont scopes per-part was possibly premature.
+The biggest value of the learner is exposing UNKNOWN structure — a working
+learner should DECOUPLE which parts matter from the CONSISTENCY of feedback
+across many (global) runs, without manual attribution. So: GLOBAL rating (whole
+composition, no toggles) is the default and sufficient path; per-part toggles
+(D10, kept) are an optional prior that hands the learner a strong hint when the
+listener already knows the attribution — an accelerant, not a requirement.
+Design implication: the learner must not DEPEND on scope tags; it treats them
+as optional side-information.
