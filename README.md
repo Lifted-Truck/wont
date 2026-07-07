@@ -1,6 +1,6 @@
 # wont
 
-> **PROVISIONAL NAME — awaiting Julian's approval.** "wont" (n., archaic):
+> **APPROVED by Julian, 2026-07-07.** "wont" (n., archaic):
 > one's habit, custom, what one is accustomed to. Chosen to pair with sibling
 > project **Wend** (to go one's way): Wend walks, wont learns what you are
 > wont to like. Alternatives considered: `fain` (gladly, desirous), `lief`

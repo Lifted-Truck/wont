@@ -58,3 +58,21 @@ repo; (b) VOLUNTARY reflection — no hook infrastructure yet in a design-phase
 repo; revisit if lessons get missed. Tag vocabulary is domain-tuned:
 stat-soundness, credit-assignment, labeled-run-schema, tonality-channel,
 artifact-contract, env-tooling.
+
+## D8 — Approvals from the 2026-07-07 design dialogue (Julian)
+
+- **Name  approved.**
+- **Dial semantics**: bipolar held-state (-1..+1), sampled once per bar;
+  reaction lag compensated CLIENT-side at a fixed 2 bars and declared via
+  lag_bars (learner-side lag refinement deferred until data shows need).
+- **Credit-assignment layering approved**: saliency hypothesizes -> scoped
+  sessions train -> ablation replays confirm. Bound: unconfirmed biases cap
+  at gentle weight adjustments; ruleset-overlay changes REQUIRE an ablation
+  confirmation.
+- **First scope: rhythm** (melody waits on gap 19, harmony on gap B).
+- **Capture-now approved**: Wend's playground shipped the dial the same day;
+  first conformant wont.labeled-run.1 validated end to end (saved to Wend's
+  labeled_runs/, server-side).
+- **Embed events by default** in labeled runs; regenerate-on-demand for audit.
+- **Normalization v1: session-median threshold**; revisit with data.
+- Intake brief filed as Tonality PR #160.
