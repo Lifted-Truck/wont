@@ -261,8 +261,13 @@ A run auditioned explicitly to rate one scope ("turn the dial for the
 melody only"). The `scopes` LIST field carries it — a pass may target a SET
 (e.g. all melodic scopes on, rhythm off), and a client may PARALLEL-SESSION
 one run: listen with one scope-set, again with the inverse, ship both
-(same run_id, different satisfaction + scopes). Wend implements exactly this
-with per-scope toggles + a staging buffer.
+(same run_id, different satisfaction + scopes). Wend implements exactly this with per-PART toggles + a staging buffer:
+its `scopes` are PART names (chords/bass/topline/drums), because a
+listener rates what they hear as a unit — "I like the bass, not the
+topline." A part-scope decomposes downstream into that part's pattern
+atoms (a part carries both rhythm and note-path aspects), so per-part is
+STRICTLY more informative than per-pattern-type, not a different axis.
+The generic `scopes: list[str]` field holds either vocabulary.
 
 - **For:** direct per-scope labels at ordinary session cost; honest about
   intent; trivial to implement (a UI toggle + one schema field).

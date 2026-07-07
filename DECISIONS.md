@@ -87,3 +87,14 @@ the inverse, ship both (same run_id, different satisfaction + scopes). Kept
 schema version `.1` (no released data — Wend's test labels were cleared);
 `from_dict` migrates any legacy `scope_session` string into the list, so the
 change is forward-safe. Wend ships per-scope toggles + a staging buffer.
+
+## D10 — Wend's scopes are PART-valued (2026-07-07)
+
+Julian: the wont toggles should be per-part, not global pattern-types — "I
+may like the harmonic walk or bassline but not the topline, and don't want to
+send the wrong feedback." So Wend's `scopes` carry PART names (chords / bass /
+topline / drums), dynamically = the parts present in the run. A part-scope
+decomposes downstream into that part's pattern atoms (rhythm + note_path), so
+this is strictly more informative than pattern-type scoping, and the generic
+`scopes: list[str]` field needs no change. Other clients may still use
+pattern-type scopes.
