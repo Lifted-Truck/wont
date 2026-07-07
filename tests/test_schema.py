@@ -63,7 +63,7 @@ def synthetic_run(seed: int = 41) -> LabeledRun:
             value_max=1.0,
             lag_bars=1,
         ),
-        scope_session=None,
+        scopes=["rhythm", "note_path"],
         events={
             "topline": [[0.0, 1.0, 60], [1.0, 0.5, 62, 96], [1.5, 0.5, 64, 96, "t1c1"]],
             "bass": [[0.0, 2.0, 36, 80]],

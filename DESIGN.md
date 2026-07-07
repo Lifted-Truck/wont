@@ -154,7 +154,7 @@ LabeledRun
                      value_min/max declared range (client's dial units)
                      lag_bars     optional reaction-lag compensation already
                                   applied by the client (0 if none)
-  scope_session    optional scope_id — set when this run was auditioned as a
+  scopes           list of scope_ids this session attends to (empty = general);
                    SCOPED LISTENING SESSION (credit assignment, §7b)
   events           optional {part_name: [[onset_beats, dur_beats, midi,
                    velocity, voice], ...]} — Tonality Event-shaped, so the
@@ -258,7 +258,11 @@ satisfaction delta is *causally* attributable to the varied scope.
 ### (b) Scoped listening sessions — cheap targeted labels
 
 A run auditioned explicitly to rate one scope ("turn the dial for the
-melody only"). The `scope_session` field in the schema carries it.
+melody only"). The `scopes` LIST field carries it — a pass may target a SET
+(e.g. all melodic scopes on, rhythm off), and a client may PARALLEL-SESSION
+one run: listen with one scope-set, again with the inverse, ship both
+(same run_id, different satisfaction + scopes). Wend implements exactly this
+with per-scope toggles + a staging buffer.
 
 - **For:** direct per-scope labels at ordinary session cost; honest about
   intent; trivial to implement (a UI toggle + one schema field).

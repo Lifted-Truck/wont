@@ -76,3 +76,14 @@ artifact-contract, env-tooling.
 - **Embed events by default** in labeled runs; regenerate-on-demand for audit.
 - **Normalization v1: session-median threshold**; revisit with data.
 - Intake brief filed as Tonality PR #160.
+
+## D9 — `scopes` is a SET per session (schema .1 finalized pre-release)
+
+`scope_session: str|None` generalized to `scopes: list[str]` (empty = general).
+Rationale: a listening pass legitimately attends to MULTIPLE scopes at once
+(Julian, 2026-07-07: "all melodic elements toggled on and all rhythm off"),
+and a client parallel-sessions one run — listen with one scope-set, again with
+the inverse, ship both (same run_id, different satisfaction + scopes). Kept
+schema version `.1` (no released data — Wend's test labels were cleared);
+`from_dict` migrates any legacy `scope_session` string into the list, so the
+change is forward-safe. Wend ships per-scope toggles + a staging buffer.

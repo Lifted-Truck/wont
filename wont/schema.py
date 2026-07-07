@@ -151,7 +151,9 @@ class LabeledRun:
     trace: dict  # client-opaque trace JSON (Wend: json.loads(Trace.to_json()))
     satisfaction: SatisfactionCurve
     engine_pins: dict = field(default_factory=dict)  # {"key_profile": "kk-1982.1", ...}
-    scope_session: str | None = None  # set when auditioned for ONE scope (DESIGN §7b)
+    scopes: list = field(default_factory=list)  # scopes this session attends to;
+    #                                             empty = general (DESIGN §7b). A pass may
+    #                                             target a SET (e.g. ["note_path","harmony"]).
     events: dict | None = None  # optional {part: [[onset_beats, dur_beats, midi, vel, voice], ...]}
     notes: list = field(default_factory=list)
     run_id: str | None = None  # derived if absent; verified if present
@@ -191,10 +193,10 @@ class LabeledRun:
             isinstance(k, str) and isinstance(v, str) for k, v in self.engine_pins.items()
         ):
             errs.append("engine_pins must map prior-name strings to version strings")
-        if self.scope_session is not None and (
-            not isinstance(self.scope_session, str) or not self.scope_session
+        if not isinstance(self.scopes, list) or not all(
+            isinstance(s, str) and s for s in self.scopes
         ):
-            errs.append(f"scope_session must be a non-empty string or None, got {self.scope_session!r}")
+            errs.append(f"scopes must be a list of non-empty strings (empty = general), got {self.scopes!r}")
         if self.events is not None:
             errs.extend(self._validate_events())
         if not isinstance(self.notes, list):
@@ -254,7 +256,7 @@ class LabeledRun:
             "seed": self.seed,
             "trace": self.trace,
             "satisfaction": self.satisfaction.to_dict(),
-            "scope_session": self.scope_session,
+            "scopes": list(self.scopes),
             "notes": self.notes,
         }
         if self.events is not None:
@@ -276,7 +278,8 @@ class LabeledRun:
             seed=d.get("seed", None),
             trace=d.get("trace", {}),
             satisfaction=SatisfactionCurve.from_dict(d.get("satisfaction", {})),
-            scope_session=d.get("scope_session"),
+            scopes=d.get("scopes") if d.get("scopes") is not None else
+            ([d["scope_session"]] if d.get("scope_session") else []),  # migrate legacy
             events=d.get("events"),
             notes=d.get("notes", []),
         )
