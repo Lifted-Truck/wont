@@ -1,0 +1,90 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>wont — scenario audition (scaffold)</title>
+<style>
+  :root { --bg:#12121a; --fg:#e8e6f0; --dim:#8a8698; --accent:#b58cff; --warm:#ffcf8c; }
+  body { background:var(--bg); color:var(--fg); font:14px/1.5 ui-monospace,Menlo,monospace;
+         margin:0; padding:24px 32px; }
+  h1 { font-weight:600; letter-spacing:.02em; }
+  .dim { color:var(--dim); }
+  .row { display:flex; gap:16px; align-items:center; margin:12px 0; flex-wrap:wrap; }
+  button, select { background:#20202c; color:var(--fg); border:1px solid #34333f;
+                   border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  #dial { width:320px; }
+  canvas { background:#0d0d14; border:1px solid #2a2933; border-radius:8px; display:block; }
+  .note { max-width:70ch; color:var(--dim); border-left:2px solid #34333f; padding-left:12px; }
+  code { color:var(--warm); }
+</style>
+
+<h1>wont — scenario audition <span class="dim">· scaffold</span></h1>
+<p class="note">
+  Scaffold UI for the wont build-agent. The loop: pick a <b>scenario</b>, pull a
+  quasi-random <b>sweep</b> of runs, audition each and turn the <b>satisfaction
+  dial</b>, save a scenario-tagged labeled run. The graph is drawn
+  <b>shifted back by the reaction lag</b> — a spike sits under the music that
+  <i>caused</i> it, not where the hand moved (DECISIONS.md D15). Playback and
+  the /sweep, /save calls are wired by the agent (harness/serve.py).
+</p>
+
+<div class="row">
+  <label>scenario <select id="scenario"><option>lofi-lounge</option></select></label>
+  <button id="next">▸ next run</button>
+  <button id="play">▶ play (stub)</button>
+  <span class="dim" id="status">run 0 · dial idle</span>
+</div>
+
+<div class="row">
+  <label>satisfaction <input id="dial" type="range" min="-1" max="1" step="0.01" value="0"></label>
+  <span id="dialval" class="dim">0.00</span>
+  <button id="save">save labeled run</button>
+</div>
+
+<canvas id="graph" width="900" height="180"></canvas>
+<p class="note">
+  Blue = raw dial · <span style="color:var(--warm)">amber</span> = lag-shifted
+  (what gets saved). Backshift = <code id="lag">2</code> bars — the scenario's
+  <code>capture.lag_bars</code>.
+</p>
+
+<script>
+const $ = id => document.getElementById(id);
+const LAG = 2;                 // scenario.capture.lag_bars; agent reads from /scenarios
+let bar = 0, raw = [];         // raw [bar, value] samples
+const cv = $('graph'), ctx = cv.getContext('2d');
+
+$('dial').addEventListener('input', e => $('dialval').textContent = (+e.target.value).toFixed(2));
+
+// simulate a per-bar sampler so the graph is alive without playback wired.
+setInterval(() => {
+  raw.push([bar, +$('dial').value]);
+  bar++;
+  $('status').textContent = `run 0 · bar ${bar} · dial ${(+$('dial').value).toFixed(2)}`;
+  draw();
+}, 500);
+
+function shift(samples, lag) {           // mirrors wont/capture.py compensate_lag
+  return samples.map(([b, v]) => [Math.max(0, b - lag), v]);
+}
+
+function draw() {
+  const W = cv.width, H = cv.height, mid = H/2;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle = '#2a2933'; ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(W,mid); ctx.stroke();
+  const n = Math.max(bar, 16), dx = W/n, y = v => mid - v*(H/2-8);
+  const line = (pts, color) => {
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+    pts.forEach(([b,v],i) => { const X=b*dx, Y=y(v); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); });
+    ctx.stroke();
+  };
+  line(raw, '#6ea8ff');                  // raw dial
+  line(shift(raw, LAG), '#ffcf8c');      // lag-compensated (saved)
+}
+
+$('next').onclick = () => { /* TODO(agent): POST /sweep, load next GeneratedRun */
+  bar = 0; raw = []; draw(); $('status').textContent = 'run advanced (stub)'; };
+$('save').onclick = () => { /* TODO(agent): POST /save {raw samples, scopes} */
+  $('status').textContent = `would save ${raw.length} samples (lag ${LAG}) → scenario runs/`; };
+$('play').onclick = () => { $('status').textContent = 'playback is agent-wired (WebAudio, per Wend)'; };
+draw();
+</script>

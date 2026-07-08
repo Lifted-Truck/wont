@@ -122,3 +122,47 @@ composition, no toggles) is the default and sufficient path; per-part toggles
 listener already knows the attribution — an accelerant, not a requirement.
 Design implication: the learner must not DEPEND on scope tags; it treats them
 as optional side-information.
+
+## D13 — 2026-07-08 — wont gets its own GUI + generator (Julian)
+
+Capture was Wend-side (Wend's playground shipped the dial, D8). Julian now
+wants wont to drive its OWN audition harness: generate random/quasi-random runs
+sweeping parameters (cadence patterns, melodic walks, chord progressions),
+audition each with a satisfaction knob, save labeled runs. Scaffolded:
+`wont/generate.py` (ParameterSpace + deterministic quasi/random samplers + the
+`Client` seam), `harness/` (serve orchestration + index.html audition skeleton),
+`wont/clients/wend.py` (the Wend adapter — STUB, agent wires it). wont stays
+client-agnostic: no Wend import in the learner; the client seam is the only
+coupling, in `wont/clients/`. Prepared by the Wend agent as handoff scaffolding
+(HANDOFF.md); the wont build-agent owns it from here.
+
+## D14 — 2026-07-08 — the scenario: a first-class, reusable training context (Julian)
+
+Julian: set up specific scenarios (e.g. a genre) that start from predefined
+Tonality/Wend rulesets and refine to taste, "saving the feedback as specifically
+in reference to that scenario for reuse in Wend and other tools." A **Scenario**
+(`wont/scenario.py`, schema `wont.scenario.1-draft`) bundles: seed_rulesets
+(where a session starts), parameter_space (what the generator sweeps), capture
+config (dial range + lag), feedback_dir (scoped store), engine_pins. Every run
+captured under a scenario is tagged with `scenario_id` (carried in
+`LabeledRun.notes` so the frozen labeled-run schema stays client-agnostic); the
+learner trains a scenario-scoped BiasArtifact stamped with the scenario
+`fingerprint()`, and Wend requests "the <scenario> bias" and applies it
+deterministically for that context. The tag+fingerprint chain is the reuse and
+audit handle. Schema is a DRAFT — the build-agent finalizes it (hence the
+`-draft` version suffix). Example: `scenarios/lofi-lounge.json`.
+
+## D15 — 2026-07-08 — satisfaction curve is shifted back by the reaction lag (Julian)
+
+Julian: "the satisfaction graph should be shifted back in time by a moment,
+since the spikes and valleys will always refer to something which just occurred,
+not necessarily what is occurring at that exact moment." This makes the D8
+`lag_bars=2` compensation a first-class, always-applied step, not just a stamped
+field: `wont/capture.py` shifts every sample EARLIER by the lag (clamped at bar
+0, order-preserving → schema-valid) so each label aligns to the music that
+CAUSED it; the GUI draws the curve shifted so the user SEES the alignment; the
+saved run stamps `lag_bars`. Default stays 2 bars (comparable across sessions).
+The learner-side alternative — searching for the lag that best explains a curve
+(DESIGN §8.1) — remains a documented hook, deliberately not applied: a fixed,
+declared, stamped lag is the honest v1, and the learner can revisit from the
+stamp. Covered by tests (compensate_lag / build_curve).

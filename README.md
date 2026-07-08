@@ -37,26 +37,38 @@ so the learner serves *any* Tonality client — Wend is the first, not the only.
 
 ## Status
 
-**Design-dialogue phase.** Deliverables so far: this scaffold, [DESIGN.md](DESIGN.md),
-a Tonality intake brief (filed on branch `wont-intake-brief` in the Tonality
-repo), and the labeled-run schema + loader with tests. **The learner itself is
-deliberately not built** — Julian's directive is dialogue before concrete
-decisions; the schema/loader is the reversible, safe-pre-dialogue slice.
+**Harness-scaffold phase.** Julian greenlit wont's own GUI + generator +
+scenarios (2026-07-08, D13–D15); the Wend agent prepared the launch pad. **Start
+at [HANDOFF.md](HANDOFF.md).** Ready and tested: the labeled-run schema + loader,
+the satisfaction **time-shift** (`capture.py`), the **scenario** schema
+(`scenario.py`, draft), and the deterministic quasi/random **sweep sampler**
+(`generate.py`). Stubs for the build-agent: the Wend client adapter
+(`clients/wend.py`), the audition server + UI (`harness/`). **The learner itself
+is still deliberately not built** — dialogue-first; per D11 its first slice is
+the synthetic recovery harness, not the ML.
 
 ## Layout
 
 ```
 README.md      this file
+HANDOFF.md     >>> START HERE: the build-agent brief (mission, ready vs stubs, plan)
 CLAUDE.md      agent pointers + gotchas
 DESIGN.md      the design document (scopes, schemas, credit assignment, v1 plan)
-DECISIONS.md   append-only decision log
+DECISIONS.md   append-only decision log (D1–D15)
 INDEX.md       knowledge-loop retrieval map (see CLAUDE.md's loop block)
 LIBRARY.md     knowledge-loop lesson store
 wont/          the package
-  schema.py    LabeledRun — the versioned labeled-run schema (validation, JSON round-trip)
+  schema.py    LabeledRun — the labeled-run schema (frozen .1; validation, round-trip)
   loader.py    load/save labeled runs and corpora
+  capture.py   dial signal -> lag-compensated SatisfactionCurve (the time-shift, D15)
+  scenario.py  Scenario — named training context (draft schema, D14)
+  generate.py  ParameterSpace + deterministic quasi/random sampler + Client seam (D13)
+  clients/     generator adapters (wend.py — STUB, the only place that drives Wend)
+harness/       wont's audition GUI (serve.py orchestration scaffold + index.html skeleton)
+scenarios/     scenario JSONs (lofi-lounge.json — worked example)
 tests/
-  test_schema.py   synthetic-example round-trip + validation tests
+  test_schema.py     labeled-run round-trip + validation
+  test_scaffold.py   capture / scenario / sampler / assembler (2026-07-08)
 ```
 
 ## Running the tests

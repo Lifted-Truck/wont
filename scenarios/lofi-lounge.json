@@ -1,0 +1,65 @@
+{
+  "schema_version": "wont.scenario.1-draft",
+  "scenario_id": "lofi-lounge",
+  "fingerprint": "9ccfe21cff8dfb941769616627cfedb305492e14137d4299c5e8e8e548878837",
+  "description": "Warm lo-fi lounge: lush extended chords, gentle within-key motion, low surprise. A worked EXAMPLE of the scenario format for the wont build-agent \u2014 copy and retarget.",
+  "target": "lo-fi lounge",
+  "client": {
+    "name": "wend",
+    "version": "0"
+  },
+  "engine_pins": {
+    "key_profile": "kk-1982.1"
+  },
+  "seed_rulesets": [
+    {
+      "ref": "wend:builtin",
+      "note": "start from Wend's built-in ruleset"
+    }
+  ],
+  "parameter_space": {
+    "axes": {
+      "harmonic_motion": {
+        "kind": "range",
+        "min": 0.15,
+        "max": 0.5
+      },
+      "chord_voices": {
+        "kind": "range",
+        "min": 4.0,
+        "max": 6.0
+      },
+      "voice_variation": {
+        "kind": "range",
+        "min": 0.2,
+        "max": 0.7
+      },
+      "surprise_budget": {
+        "kind": "range",
+        "min": 2.0,
+        "max": 4.5
+      },
+      "structure": {
+        "kind": "range",
+        "min": 0.0,
+        "max": 1.0
+      },
+      "surface": {
+        "kind": "choice",
+        "options": [
+          "block",
+          "arp_updown"
+        ]
+      }
+    }
+  },
+  "capture": {
+    "value_min": -1.0,
+    "value_max": 1.0,
+    "lag_bars": 2
+  },
+  "feedback_dir": "scenarios/lofi-lounge/runs",
+  "notes": [
+    "scaffold example (2026-07-08)"
+  ]
+}
