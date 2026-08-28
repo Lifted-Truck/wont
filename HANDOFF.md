@@ -1,5 +1,13 @@
 # wont — build-agent handoff
 
+> **STATUS (2026-07-08, build agent): the audition harness below is BUILT and
+> green** — `WendClient` (in-process, D16), `harness/serve.py` (the HTTP
+> server), and `harness/index.html` (playback + capture + save) are done and
+> tested (`tests/test_harness.py`); the scenario schema is finalized
+> (`wont.scenario.1`, D17). The LEARNER (item 4) remains design-only and gated,
+> as instructed. This brief is retained as the historical launch context; the
+> binding record of what was built is DECISIONS.md D16–D17.
+
 > Prepared 2026-07-08 by the Wend agent, at Julian's direction, as the launch
 > pad for a dedicated wont build-agent. Read this, then `DESIGN.md` (the deep
 > design) and `DECISIONS.md` (D1–D15, the binding choices). Everything here

@@ -1,15 +1,23 @@
 # wont — agent notes
 
 Preference-learning system for Tonality-based generators. **Name is
-provisional** (see README). Currently in **design-dialogue phase**: do not
-build the learner until the Tonality intake dialogue (branch
-`wont-intake-brief` in `~/Documents/Tonality`) resolves and Julian approves
-the design.
+provisional** (see README).
+
+**Built:** the audition harness (D13/D16/D17) — generate/sweep runs, audition
+with the satisfaction dial, save scenario-tagged labeled runs. Run it (Tonality
+venv, from this dir): `~/Documents/Tonality/.venv/bin/python -m harness.serve`
+→ http://127.0.0.1:8771. The one Wend-importing module is `wont/clients/wend.py`
+(in-process transport). **Not built / gated:** the LEARNER (DESIGN §5–§9) and
+`wont/engine.py` (the sole `mts` importer) — do NOT build them until the
+Tonality intake dialogue (branch `wont-intake-brief`) resolves and Julian
+approves; per D11 the learner's FIRST build is the synthetic-recovery harness.
 
 ## Pointers
 
+- [ROADMAP.md](ROADMAP.md) — phase-gated sequence + the learner gate. Start
+  here for "what's next"; it owns the *what/when* (DESIGN owns the *how*).
 - [DESIGN.md](DESIGN.md) — the design of record (scopes, schemas, credit
-  assignment, v1 plan). Outranks anything else here.
+  assignment, v1 plan). Outranks anything else here on design detail.
 - [DECISIONS.md](DECISIONS.md) — append-only decision log.
 - `~/Documents/Tonality/INTEGRATION.md` — engine capability schematic.
 - `~/Documents/Tonality/integrations/wend/brief-3.md` + `response-3.md` — the

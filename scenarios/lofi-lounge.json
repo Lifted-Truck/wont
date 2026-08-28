@@ -1,5 +1,5 @@
 {
-  "schema_version": "wont.scenario.1-draft",
+  "schema_version": "wont.scenario.1",
   "scenario_id": "lofi-lounge",
   "fingerprint": "9ccfe21cff8dfb941769616627cfedb305492e14137d4299c5e8e8e548878837",
   "description": "Warm lo-fi lounge: lush extended chords, gentle within-key motion, low surprise. A worked EXAMPLE of the scenario format for the wont build-agent \u2014 copy and retarget.",

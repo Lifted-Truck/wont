@@ -1,3 +1,20 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Capture-data policy (D19), tier 1: working / synthetic captures stay OUT of git
+# (throwaway, high-volume, reproducible). A *sealed* corpus is committed
+# deliberately under corpora/<scenario>/<seal-date>/ (tier 2, via the readout
+# writer) with its hash manifest (tier 3) — NOT swept in by every audition.
+# NB: gitignored != disposable — these hold primary human labels; keep the dir
+# under a backed-up / synced path.
+scenarios/*/runs/
+
+# Machine-local Claude Code config: launch.json pins an absolute interpreter
+# path (Tonality's venv, outside this repo) — never portable to a clone or
+# another machine, and it leaks the local file tree. Keep it local.
+.claude/launch.json
+.claude/settings.local.json
+
+# harness run state — local, not shared (kit v2)
+.harness/

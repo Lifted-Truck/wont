@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# verify — oracle dispatcher. The harness's only interface to project QC.
+# Usage: ./verify fast | full | report
+# Contract: exit 0 = green, nonzero = red. Writes .harness/last-verify.json.
+#
+# THIS FILE IS PROJECT-OWNED: edit `fast` and `full` freely. The kit-owned
+# gates live in `.kit/kit-gates.sh`, vendored and checksummed — do not edit
+# that one, and do not copy its contents here. Update it with:
+#   python3 <kit>/kit_sync.py .
+set -uo pipefail
+
+TARGET="${1:-fast}"
+HARNESS_DIR=".harness"
+mkdir -p "$HARNESS_DIR"
+
+# Kit-owned gates: record, leak_gate, kit_integrity. A repo missing this file
+# is not a lesser repo, it is an UNGATED one, so failing loudly beats degrading
+# quietly.
+if [ -r .kit/kit-gates.sh ]; then
+  . .kit/kit-gates.sh
+else
+  echo "verify: .kit/kit-gates.sh missing — run kit_sync.py (gates cannot be skipped)" >&2
+  exit 1
+fi
+
+# --- project gates ----------------------------------------------------------
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# The interpreter: no system pytest on this machine, and wont's client seam
+# imports Wend — the Tonality venv carries pytest + mts + an importable Wend
+# (LIBRARY L0001). Overridable, and $HOME-relative so no machine-absolute path
+# is ever baked into a tracked file (that is what the leak gate exists to stop).
+WONT_PYTHON="${WONT_PYTHON:-$HOME/Documents/Tonality/.venv/bin/python}"
+
+# A tracked probe plant could hide identity paths the leak gate now ignores by
+# design. Untracked plants stay visible to their owning probe; a COMMITTED one
+# could never be seen — so fail on tracked, not on present.
+plant_not_tracked() {
+  local tracked
+  tracked="$(git -C "$REPO_DIR" ls-files -- '.kit-currency-plant-*' 2>/dev/null)"
+  [ -z "$tracked" ] && return 0
+  echo "plant_not_tracked: probe plant is TRACKED (must never be committed):" >&2
+  echo "$tracked" >&2
+  return 1
+}
+
+interpreter_gate() {
+  [ -x "$WONT_PYTHON" ] && return 0
+  echo "interpreter_gate: no interpreter at \$WONT_PYTHON ($WONT_PYTHON)." >&2
+  echo "  wont needs one carrying pytest + mts + importable Wend (LIBRARY L0001)." >&2
+  return 1
+}
+
+# Frozen schema versions (CLAUDE.md: a version is frozen once a file with it
+# exists anywhere; changes bump the string). A silent bump would orphan every
+# labeled run already on disk, so it is an oracle, not a lint.
+schema_frozen_gate() {
+  "$WONT_PYTHON" - "$REPO_DIR" <<'PY' || return 1
+import sys, pathlib
+repo = pathlib.Path(sys.argv[1]); sys.path.insert(0, str(repo))
+from wont.schema import SCHEMA_VERSION as RUN_V
+from wont.scenario import SCHEMA_VERSION as SCN_V
+want = {"wont.labeled-run.1": RUN_V, "wont.scenario.1": SCN_V}
+bad = [f"  expected {k}, got {v}" for k, v in want.items() if k != v]
+if bad:
+    print("schema_frozen_gate: FROZEN schema version changed:", file=sys.stderr)
+    print("\n".join(bad), file=sys.stderr); sys.exit(1)
+PY
+}
+
+# The suite. Pure/deterministic; Wend-dependent tests skip if Wend is absent.
+test_gate() {
+  ( cd "$REPO_DIR" && "$WONT_PYTHON" -m pytest tests/ -q ) >/dev/null 2>&1 \
+    || { echo "test_gate: pytest FAILED — rerun for detail:" >&2
+         echo "  \$WONT_PYTHON -m pytest tests/ -q" >&2; return 1; }
+}
+
+# The standing invariant behind every reproducibility claim (D4/D16): one
+# (ruleset_text, config, seed) must regenerate byte-identical music, or the
+# run_id fingerprint is meaningless. Skips cleanly when Wend is unavailable.
+determinism_gate() {
+  "$WONT_PYTHON" - "$REPO_DIR" <<'PY' || return 1
+import sys, pathlib
+repo = pathlib.Path(sys.argv[1]); sys.path.insert(0, str(repo)); sys.path.insert(0, str(repo.parent))
+from wont.clients.wend import WendClient, _WEND_IMPORT_ERROR
+if _WEND_IMPORT_ERROR is not None:
+    print(f"determinism_gate: SKIPPED — Wend not importable ({_WEND_IMPORT_ERROR!r})")
+    sys.exit(0)
+c = WendClient(); cfg = {"harmonic_motion": 0.3, "surface": "block"}
+a, b = c.generate_run(cfg, seed=11), c.generate_run(cfg, seed=11)
+if (a.events, a.trace, a.config) != (b.events, b.trace, b.config):
+    print("determinism_gate: same (ruleset, config, seed) produced DIFFERENT music", file=sys.stderr)
+    sys.exit(1)
+PY
+}
+
+fast() {
+  # ---- Layer-0: seconds, not minutes. CI-blocking. -------------------------
+  local ok=0
+  kit_integrity      || ok=1   # kit-owned files must match .kit/MANIFEST
+  leak_gate          || ok=1   # privacy gate: kit-core, keep it first
+  plant_not_tracked  || ok=1
+  interpreter_gate   || ok=1
+  schema_frozen_gate || ok=1
+  test_gate          || ok=1
+  return $ok
+}
+
+full() {
+  fast || return $?
+  # ---- Layer-E: the whole gate. Run before closing a queue item. -----------
+  local ok=0
+  determinism_gate || ok=1
+  return $ok
+}
+
+case "$TARGET" in
+  fast)   fast;  record fast  $? ;;
+  full)   full;  record full  $? ;;
+  report) cat "$HARNESS_DIR/last-verify.json" 2>/dev/null || { echo '{"target":null,"exit":null}'; exit 1; } ;;
+  *)      echo "usage: ./verify fast|full|report" >&2; exit 64 ;;
+esac

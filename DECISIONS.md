@@ -166,3 +166,185 @@ The learner-side alternative — searching for the lag that best explains a curv
 (DESIGN §8.1) — remains a documented hook, deliberately not applied: a fixed,
 declared, stamped lag is the honest v1, and the learner can revisit from the
 stamp. Covered by tests (compensate_lag / build_curve).
+
+## D16 — 2026-07-08 — Wend client transport is IN-PROCESS import (build agent)
+
+The HANDOFF left the Wend seam's transport to the build agent (in-process import
+vs subprocess/HTTP). Chose **in-process** (`wont/clients/wend.py` is the one
+Wend-importing module): `make_oracle → parse_ruleset → set rs.config →
+generate() → assemble_parts()`. Rationale: Wend is a sibling package in the same
+`synthetic-worlds/` monorepo and wont runs on the Tonality venv, which imports
+Wend cleanly; in-process hands back the in-memory `result.events` /
+`assemble_parts` structures directly — no MIDI round-trip, no fidelity loss,
+determinism airtight (same ruleset_text+config+seed → byte-identical events +
+trace, verified in tests). The global shared-engine protocol's "data contract,
+not a network boundary" (rule 1) is satisfied by the GeneratedRun boundary, not
+by a socket. Subprocess (`python -m Wend`) and HTTP (`/generate`, port 8770 —
+Wend does expose it) remain a documented swap-in for the day wont must run
+without Wend's Python present; the seam's normalized `GeneratedRun` return makes
+that swap invisible downstream. NOTE: this is wont↔Wend (two Tonality
+consumers), NOT the Tonality engine boundary — `wont/engine.py` (the sole `mts`
+importer) is still unwritten and belongs to the learner phase.
+
+## D17 — 2026-07-08 — scenario schema frozen to `wont.scenario.1`; audition harness built
+
+The audition harness (D13) is built and green end-to-end: `harness/serve.py` (a
+stdlib-`http.server` adapter over the pure helpers — `/scenarios`, `/sweep`,
+`/save`, port 8771), `harness/index.html` (scenario picker → sweep → WebAudio
+playback of the returned per-part events → per-bar dial capture → lag-shifted
+graph → save), and the live `WendClient` (D16). Building it exercised every
+`Scenario` field, so the draft schema is **finalized**: `wont.scenario.1-draft`
+→ `wont.scenario.1` (no shape change; the fingerprint excludes `schema_version`,
+so runs already tagged with a scenario fingerprint are undisturbed). Scaffold
+fixes made along the way: `serve.SCENARIO_DIR` used two `..` but `scenarios/` is
+one level up from `harness/` (empty scenario list); `WendClient.generate_run`
+was a stub. New tests: `tests/test_harness.py` (client determinism, effective-
+config coercion, sweep distinctness, full capture→save→reload round-trip over
+real music); `conftest.py` puts the `synthetic-worlds` parent on `sys.path` so
+`import Wend` resolves in the suite (Wend-dependent tests skip if it is absent).
+The **learner remains unbuilt and gated** (HANDOFF / DESIGN §5–§9) — the harness
+is capture/audition tooling, the D11 synthetic-recovery harness is its first
+step and is deliberately NOT started here.
+
+## D18 — 2026-07-08 — bind to Tonality's Markov-alignment notice (gap 14 + housekeeping)
+
+Received `~/Documents/Tonality/integrations/wont/notice-markov-alignment.md`
+(2026-07-08) — a proactive alignment pass from the Tonality dev loop, "no ask,"
+recording the shared vocabulary for wont's "preferences via a Markov bot"
+direction now that Tonality shipped its distribution layer (gap 14) after the
+founding response. Nothing owed now (learner is design-only, gated); this logs
+the bindings adopted into the design of record so the future learner-build
+session inherits an aligned contract. Full bindings captured in LIBRARY [L0003]
+(tonality-channel) + [L0004] (stat-soundness). Adopted:
+- **Consume the gap-14 layer, don't reimplement.** `build_transition_matrix(...,
+  state="roman"/"role"/..., smoothing="laplace")` is "a Markov chain over
+  succession tags"; `cross_entropy` gives perplexity; `StyleProfile` bundles
+  ruleset+distributions. Transition math/smoothing/perplexity are engine domain
+  core (rule 3) — wont keeps satisfaction/contrast/thresholding/bias only.
+- **The symmetric distribution contrast is the one real gap.**
+  `compare_transition_matrices` (KL + per-transition log-odds — the Markov
+  analogue of `compare_rulesets`) does NOT exist yet; wont is the **named
+  consumer**. Posture identical to graded-weights (gap 20) + firing-locations:
+  don't build speculatively — **file a brief-2** when the Markov/harmony scope
+  materializes. Until then, `cross_entropy` + the two matrices cover the
+  asymmetric case.
+- **Distribution payloads travel by reference as Tonality types** (D-consistent
+  with response §5): a Markov `BiasArtifact` embeds `TransitionMatrix.to_dict()`
+  / `StyleProfile` verbatim, never a bespoke wont matrix format.
+- **Pin `distribution.1`** as a third versioned prior alongside `key_profile`
+  (client) + `scoring_prior` (induction) on any artifact carrying a distribution.
+- **Two response loose ends shipped — bind, drop workarounds:**
+  `ruleset_field_manifest()` (schema `ruleset-fields.2`) replaces reading
+  `mts.rules.schema.FAMILIES`; `evaluate_ruleset(..., include_firings=True)`
+  yields located firings — the engine-shaped hook for the §7c saliency layer.
+- **Resolves an open question in our own design (§7):** the "spans from one run
+  aren't independent pieces" wrinkle is answered — `pieces = runs` (per-run
+  pooling), never per-span. Folded into DESIGN §3.3 / §5 / §7 / §9 with this
+  notice attributed. This narrows corpus construction (one pseudo-piece per run
+  per label), which touches the credit-assignment design (D9–D12).
+  — **UPDATE (Julian, same day): reopened.** The ENGINE ruling (spans aren't
+  independent pieces) stands, but its interaction with Wend's per-run capture is
+  NOT cleanly closed: Wend runs are long/multi-span AND Wend parallel-sessions one
+  `run_id` (D9/D10 — same music, different scope-set + satisfaction). `pieces =
+  runs` then either pools those parallel sessions into one piece (collapsing the
+  scoped signal D10 was built for) or admits correlated same-music pieces (the
+  trap). This **warrants a dialogue** — primary question to Tonality (brief-2):
+  are parallel same-run sessions one piece or correlated pieces, and can
+  `induce_rules` model the within-run/across-session correlation rather than
+  exclude it? With a Wend-capture design thread (does D10's parallel-session
+  multiplication still earn its keep if power is bounded by audited runs, not
+  spans?). DESIGN §7 + [L0004] demoted from "resolved" to "open, under dialogue."
+  Do NOT treat `pieces = runs` as settled for Wend.
+  — **brief-2 DRAFTED** (Julian's call, 2026-07-08):
+  `~/Documents/Tonality/integrations/wont/brief-2.md` — the K-parallel-scoped-
+  sessions-per-run_id question (Q1 independence unit; Q2 clustered/mixed-effects
+  slice, wont named consumer; Q3 per-(run,scope) unit; Q4 same for the gap-14
+  distribution layer). Written into the channel but **unstaged / not filed** —
+  left for Julian's review + commit/push, per the D5 no-push precedent.
+  — **RESOLVED (response-2, 2026-07-08):** recipe answer, no engine work for v1.
+  The K-session problem DISSOLVES via scope-separation: each scope is its own
+  corpus, so K parallel scoped sessions of one `run_id` land in K *different*
+  corpora → within a corpus, `pieces = runs`; the unit is `(run, scope)`.
+  Whole-composition / unscoped ratings stay one-piece-per-run in the global corpus.
+  The clustered/mixed-effects (`run_id` grouping-key) slice is needed ONLY for
+  multiple SAME-scope sessions of one run or a cross-scope joint model — contingent
+  engine work, wont named, deferred. New stamp: split `cross_entropy` held-out sets
+  BY RUN (never span/session) or perplexity leaks optimistic. Design fork settled:
+  parallel scoped sessions are an attribution + cross-scope render-efficiency lever,
+  NOT within-scope power (a scope's N = distinct runs carrying it; lean on more
+  distinct runs). Folded into DESIGN §3.3 / §7 / §9-step-3; [L0004] promoted to
+  canonical, [L0005] added. Durable outcomes in Tonality ROADMAP A10.
+
+## D19 — 2026-07-09 — capture-data versioning: a three-tier promotion model (Julian)
+
+Whether captured LabeledRuns are versioned or gitignored (raised after the
+harness build). Chosen: a PROMOTION MODEL, not a binary — because a capture is
+two kinds of data. The satisfaction curve + scopes are **primary and
+irreplaceable** (frozen human listening time — the loop's scarcest resource, §7);
+ruleset_text / config / seed / trace / events are **derived** (reproducible from
+the client on pinned versions, D4/D16). The tiers:
+
+1. **Working / synthetic captures → gitignored** (current default,
+   `scenarios/*/runs/`). Dev auditions and the D11 synthetic-recovery runs
+   (hundreds of fabricated labels per experiment) are throwaway, high-volume,
+   reproducible — they never enter git. BUT gitignored ≠ disposable: the working
+   dir holds PRIMARY human labels, so it must live under a backed-up / synced
+   path (one `rm -rf` from gone otherwise). Standing recommendation to Julian;
+   not repo-enforced.
+2. **Sealed corpus → committed.** The finite, curated set of runs that trained a
+   RELEASED bias artifact is committed with the artifact, under a non-ignored
+   path (`corpora/<scenario>/<seal-date>/`). This is what makes the artifact's
+   `training_runs` provenance (§5) reproducible — the doctrine's "reproduce
+   exactly" is hollow if the training inputs live only on one machine. The
+   readout writer (§6) IS this promotion mechanism; it is learner-phase and
+   gated, so tier 2 is design-only until then.
+3. **Always-committed manifest.** A tiny index (run_id + content-hash +
+   capture-date + scenario_fp per run) is committed even while bulky payloads
+   stay in tier 1's ignored store — it diffs cleanly, records WHAT exists, and
+   lets any artifact's training set be verified by hash without the payloads in
+   git. The readout's `manifest.json` (file inventory + hashes, §6) fills this
+   role for a sealed corpus.
+
+Rationale beyond primary-vs-derived: (a) **git is a bad database** — JSON data
+diffs are noise, blobs bloat clones; reserve it for curated/sealed sets + the
+tiny manifest, not raw high-volume captures. (b) **Client drift** — "regenerate
+on demand" degrades as Wend evolves, so a sealed corpus keeps its embedded
+events (D8) as the record of what was actually heard. (c) **The asymmetry** —
+gitignore-now is reversible (`git add` later); commit-everything-now is not
+(blobs stay in history forever). Start conservative, promote deliberately.
+
+Implication: **no code now** (readout writer gated). The harness already saves
+into tier 1 (gitignored). When the learner/readout lands, sealing a corpus =
+running the readout writer into `corpora/<scenario>/<seal-date>/` and committing
+it + the manifest. `.gitignore` + this decision are the durable record until then.
+
+## D20 — 2026-08-28 — the oracle exists; Phase-2 gate lifted (Julian, session close)
+
+Two things, both from the session close.
+
+**(a) `./verify` now exists.** The repo carried a vendored, checksummed `.kit/`
+(kit 2.5.0) but no project-owned `./verify` to source it — so every gate it
+ships (leak, kit-integrity) was inert, and `state.py` reported "no recorded
+run". Written now, in the fleet's dispatcher shape: Layer-0 `fast` =
+kit_integrity + leak_gate + plant_not_tracked + interpreter_gate +
+schema_frozen_gate + test_gate; Layer-E `full` adds determinism_gate (one
+(ruleset_text, config, seed) must regenerate byte-identical music — D4/D16, the
+invariant every reproducibility claim rests on). Both **green** at close.
+`schema_frozen_gate` makes the CLAUDE.md "versions are frozen" rule an oracle
+rather than a convention. The interpreter is `$WONT_PYTHON`, defaulting to a
+`$HOME`-relative Tonality venv path — never a machine-absolute literal, which is
+what the leak gate exists to stop. Also added: `ROADMAP.md` (the phase-gated
+sequence + the gate, now the "what's next" authority, pointed to from CLAUDE.md
+and README), `.harness/` ignored (kit v2), and a README de-drift — it still
+announced "Harness-scaffold phase" with the client/server/UI as unbuilt stubs,
+which the D13–D17 work had made false.
+
+**(b) The Phase-2 gate is LIFTED.** ROADMAP's learner gate required both the
+Tonality intake dialogue resolved (done: brief/response, brief-2/response-2, the
+notices) and Julian's approval. At close, asked for the first move next session,
+Julian chose **"Start Phase 2 (`wont/engine.py`)"** — that is the approval, on
+the record. Next session opens the `mts` boundary module, then slicer → per-
+`(run, scope)` corpus builder → the D11 synthetic-recovery experiment, gated by
+the pre-registered Layer-0 recovery criterion. The §8 policy knobs (threshold +
+hysteresis, min-span, normalization) are decided AT that build, explicitly, not
+inherited from whatever the first implementation happens to do.

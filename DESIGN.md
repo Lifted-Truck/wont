@@ -122,6 +122,25 @@ contingency tables between liked/disliked corpora) rather than
 `induce_rules` — visibly-minimal, documented as the swap-in point per the
 shared-engine protocol (rule 5).
 
+**Distribution surface (gap 14, shipped — the Markov direction).** Tonality's
+Markov/distribution layer gives this scope its second, richer engine surface
+(Markov-alignment notice, 2026-07-08; D18): `build_transition_matrix(chord_corpus,
+state="roman"|"role"|"degree"|"quality", smoothing="laplace")` IS "a Markov chain
+over succession tags" (versioned prior `distribution.1`), and the Markov
+preference signal is the distribution *contrast* `build_transition_matrix(liked)`
+vs `(disliked)` — the exact analogue of the `induce_rules → compare_rulesets`
+pipeline. wont consumes this; it never hand-rolls transition counting, Laplace
+smoothing, or perplexity (rule 3). The *symmetric* contrast
+`compare_transition_matrices` (KL + per-transition log-odds) is the one genuine
+gap — wont is the **named consumer**; file a brief-2 when this scope materializes.
+Until then, `TransitionMatrix.cross_entropy(held_out)` (bits/transition +
+perplexity) covers the asymmetric case and doubles as a D11 recovery-harness
+metric. **Stamp (response-2):** when scoring with `cross_entropy`, split the
+held-out set **by run**, never by span or session — same-run material on both
+sides of the split leaks (identical underlying music) and returns optimistic
+perplexity; the run is the unit for train/test partitioning as well as for
+piece support.
+
 ### 3.4 Extensibility
 
 A scope is a registered triple: `(scope_id, extractor, corpus_builder)` over
@@ -205,6 +224,16 @@ Consumers never see raw training data through the artifact; the plural
 evidence (per-rule margins, p/q) rides along per the consume-plural-outputs
 rule — a client may re-rank rather than take `bias_weights` as gospel.
 
+**Distribution payloads travel by reference, as Tonality types** (D18, extending
+the response §5 discipline to the Markov half): a `BiasArtifact` carrying a Markov
+payload embeds `TransitionMatrix.to_dict()` (or a whole `StyleProfile`) verbatim,
+never a bespoke wont matrix format. The `BiasArtifact` container stays wont-schema
+— it wraps the *satisfaction-derived contrast*, which is ours — but its
+distribution content is Tonality's type, by reference. Provenance then pins a
+THIRD versioned prior, the smoothing prior `distribution.1`, alongside
+`key_profile` and the induction `scoring_prior`. This keeps the "mts + the readout
+reproduces the numbers exactly" acceptance bar intact.
+
 ## 6. The readout (dual output #2)
 
 The independent-analysis export — everything an agent needs to check our
@@ -231,6 +260,14 @@ Design test: a fresh agent with only `mts` and this directory can re-run
 `induce_rules` on the corpora, `compare_rulesets` on the rulesets, and
 `evaluate_ruleset` of either ruleset against any span — and reproduce our
 numbers exactly (deterministic engine + pinned priors + committed corpora).
+
+**This readout is the committed, versioned tier of the capture-data policy (D19).**
+Raw captures are gitignored working data (tier 1); the readout is the *sealed
+corpus* committed alongside a released artifact (tier 2), and its `manifest.json`
+(file inventory + hashes) is the always-committed index (tier 3) that makes an
+artifact's `training_runs` (§5) verifiable by hash. Writing the readout IS the
+promotion step; it lands under `corpora/<scenario>/<seal-date>/`. Gated with the
+learner — design-only until then.
 
 ## 7. Credit assignment across scopes — THE open question
 
@@ -300,11 +337,35 @@ routinely → per-scope training labels; (a) sparingly → confirmation of any
 finding that will bias generation by more than a bounded amount. The bound
 itself is an open design knob.
 
-A statistical wrinkle to resolve with Tonality (intake brief §4): spans cut
-from the SAME run are not independent pieces — does `induce_rules`'
-piece-presence support + Fisher independence tolerate multiple spans per
-run, or must the run be the piece unit (one span per run, or per-run pooling)?
-This is the same class of trap as span duplication, one level up.
+A statistical wrinkle, **resolved** (response §4 + response-2, 2026-07-08; D18).
+The engine's honesty ruling: spans cut from the SAME run are not independent
+pieces, so pool a run's same-label spans into ONE pseudo-piece — `pieces = runs`,
+never separate per-span pieces (that inflates `induce_rules`' piece-presence
+support + Fisher independence, the span-duplication trap one level up).
+
+Binding this to Wend surfaced — and Tonality resolved — the level above: Wend
+parallel-sessions a single `run_id` (D9/D10: same music rated under multiple
+scope-sets, different satisfaction each). The independence unit is **`(run,
+scope)`**, and because **each scope is mined as its own corpus** (§3), within any
+one corpus it reduces to `pieces = runs` — the K parallel sessions land in K
+*different* corpora, so no corpus ever sees the run twice and the pseudo-replication
+never arises (response-2). A `bass`-scoped session of run R feeds R's bass atoms to
+the bass corpus; a `topline` session of the same R feeds the topline corpus;
+whole-composition / unscoped ratings stay one-piece-per-run in the global corpus.
+The only residual is **multiple same-scope sessions of one run** (pool if
+same-label) or a **cross-scope joint model** — the sole cases needing a `run_id`
+grouping-key (clustered / mixed-effects) slice, recorded as contingent engine work
+with wont named, and deferred (don't build; return with the trigger).
+
+**Design consequence (the fork this gated).** Parallel scoped sessions are an
+*attribution* lever and a *cross-scope render-efficiency* lever (one audited run
+feeds K scope corpora at once — harvest bass-signal *and* topline-signal from one
+listen; determinism helps here), but **not** within-scope power: a scope's
+effective N is the distinct runs carrying it (+1 per run, never +K). So the D10
+staging buffer earns its complexity for attribution + efficiency; for significance,
+lean on more *distinct* runs per scope and treat scoped sessions as the D12
+optional-prior accelerant, not a multiplier. (Synthetic D11 recovery is unaffected:
+fabricated labels, one per run.)
 
 ## 8. Open questions (beyond credit assignment)
 
@@ -337,9 +398,11 @@ Smallest honest loop, everything on shipped engine surface:
 2. **Slice** (wont): threshold each run's curve at the session median with
    hysteresis → liked spans / disliked spans; drop spans shorter than the
    minimum; **never duplicate**.
-3. **Build corpora** (wont, per scope): each span becomes a pseudo-piece in
-   the scope's vocabulary — melody events for `note_path`, onsets for
-   `rhythm`, chord successions for `harmony`.
+3. **Build corpora** (wont, per scope): each **run** becomes a pseudo-piece in
+   the scope's vocabulary (pool that run's same-label spans — `pieces = runs`,
+   §7, response §4/response-2; never one-per-span) — melody events for
+   `note_path`, onsets for `rhythm`, chord successions for `harmony`. Each scope
+   is its own corpus, so a run scoped to that scope contributes exactly once.
 4. **Mine separately** (engine): `induce_rules` on liked and disliked corpora
    per scope (`note_path`, `rhythm`); succession-tag frequency contrast for
    `harmony` until Phase 4.6 gap B.
@@ -356,5 +419,8 @@ Smallest honest loop, everything on shipped engine surface:
 Deferred, with triggers: graded sample-weights (gap 20 — trigger: binary
 split demonstrably too coarse on real curves); bandit over parameterizations
 (trigger: enough sessions that exploration policy matters); per-scope
-logistic saliency (trigger: corpora large enough to split); Markov chains
-over succession tags (trigger: harmony scope post-gap-B).
+logistic saliency (trigger: corpora large enough to split; engine hook now
+shipped — `evaluate_ruleset(..., include_firings=True)` located firings, D18);
+Markov chains over succession tags (trigger: harmony scope goes Markov —
+consume `build_transition_matrix` + contrast; file a brief-2 for the symmetric
+`compare_transition_matrices` slice, wont named consumer, D18).
