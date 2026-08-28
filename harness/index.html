@@ -1,90 +1,311 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>wont — scenario audition (scaffold)</title>
+<title>wont — scenario audition</title>
 <style>
-  :root { --bg:#12121a; --fg:#e8e6f0; --dim:#8a8698; --accent:#b58cff; --warm:#ffcf8c; }
+  :root { --bg:#12121a; --fg:#e8e6f0; --dim:#8a8698; --accent:#b58cff; --warm:#ffcf8c;
+          --raw:#6ea8ff; --panel:#1a1a24; --line:#2a2933; --ok:#8cffb0; --bad:#ff8c9c; }
+  * { box-sizing:border-box; }
   body { background:var(--bg); color:var(--fg); font:14px/1.5 ui-monospace,Menlo,monospace;
-         margin:0; padding:24px 32px; }
-  h1 { font-weight:600; letter-spacing:.02em; }
+         margin:0; padding:24px 32px; max-width:1040px; }
+  h1 { font-weight:600; letter-spacing:.02em; margin:0 0 4px; }
   .dim { color:var(--dim); }
-  .row { display:flex; gap:16px; align-items:center; margin:12px 0; flex-wrap:wrap; }
-  button, select { background:#20202c; color:var(--fg); border:1px solid #34333f;
-                   border-radius:8px; padding:8px 14px; font:inherit; cursor:pointer; }
-  button:hover { border-color:var(--accent); }
-  #dial { width:320px; }
-  canvas { background:#0d0d14; border:1px solid #2a2933; border-radius:8px; display:block; }
-  .note { max-width:70ch; color:var(--dim); border-left:2px solid #34333f; padding-left:12px; }
+  .warm { color:var(--warm); }
+  .row { display:flex; gap:14px; align-items:center; margin:12px 0; flex-wrap:wrap; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px;
+           padding:14px 16px; margin:14px 0; }
+  button, select, input[type=number] { background:#20202c; color:var(--fg); border:1px solid #34333f;
+                   border-radius:8px; padding:8px 12px; font:inherit; cursor:pointer; }
+  button:hover:not(:disabled), select:hover { border-color:var(--accent); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.primary { background:#2c2440; border-color:var(--accent); }
+  input[type=number] { width:64px; cursor:text; }
+  #dial { width:340px; accent-color:var(--accent); }
+  canvas { background:#0d0d14; border:1px solid var(--line); border-radius:8px; display:block;
+           width:100%; height:180px; }
+  .note { max-width:78ch; color:var(--dim); border-left:2px solid var(--line); padding-left:12px; }
   code { color:var(--warm); }
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:20px;
+          border:1px solid #34333f; user-select:none; cursor:pointer; }
+  .chip input { accent-color:var(--accent); }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:2px 14px; font-size:13px; }
+  .kv b { color:var(--dim); font-weight:400; }
+  .big { font-size:26px; font-variant-numeric:tabular-nums; }
+  #status { min-height:1.4em; }
+  .pill { padding:2px 8px; border-radius:6px; background:#20202c; border:1px solid #34333f; font-size:12px; }
 </style>
 
-<h1>wont — scenario audition <span class="dim">· scaffold</span></h1>
+<h1>wont — scenario audition</h1>
 <p class="note">
-  Scaffold UI for the wont build-agent. The loop: pick a <b>scenario</b>, pull a
-  quasi-random <b>sweep</b> of runs, audition each and turn the <b>satisfaction
-  dial</b>, save a scenario-tagged labeled run. The graph is drawn
-  <b>shifted back by the reaction lag</b> — a spike sits under the music that
-  <i>caused</i> it, not where the hand moved (DECISIONS.md D15). Playback and
-  the /sweep, /save calls are wired by the agent (harness/serve.py).
+  Pick a <b>scenario</b> → pull a quasi-random <b>sweep</b> of runs → audition each
+  and hold the <b>satisfaction dial</b> as it plays → save a scenario-tagged labeled
+  run. The graph is drawn <b>shifted back by the reaction lag</b> — a spike sits under
+  the music that <i>caused</i> it, not where your hand moved (D15). Scope toggles are
+  an <i>optional</i> per-part hint (D10/D12); leave them off for a plain global rating.
 </p>
 
-<div class="row">
-  <label>scenario <select id="scenario"><option>lofi-lounge</option></select></label>
-  <button id="next">▸ next run</button>
-  <button id="play">▶ play (stub)</button>
-  <span class="dim" id="status">run 0 · dial idle</span>
+<div class="panel">
+  <div class="row">
+    <label>scenario <select id="scenario"></select></label>
+    <span class="dim" id="scenmeta"></span>
+  </div>
+  <div class="row">
+    <label class="dim">runs <input id="n" type="number" min="1" max="64" value="8"></label>
+    <label class="dim">method
+      <select id="method"><option value="quasi">quasi</option><option value="random">random</option></select>
+    </label>
+    <label class="dim">seed <input id="seed" type="number" min="0" value="0"></label>
+    <button id="sweep" class="primary">⟳ sweep</button>
+    <span class="dim" id="sweepinfo"></span>
+  </div>
 </div>
 
-<div class="row">
-  <label>satisfaction <input id="dial" type="range" min="-1" max="1" step="0.01" value="0"></label>
-  <span id="dialval" class="dim">0.00</span>
-  <button id="save">save labeled run</button>
-</div>
+<div class="panel" id="runpanel" style="display:none">
+  <div class="row" style="justify-content:space-between">
+    <div class="row" style="margin:0">
+      <button id="prev">◂ prev</button>
+      <span class="pill" id="runidx">run –</span>
+      <button id="nextrun">next ▸</button>
+    </div>
+    <div class="row" style="margin:0">
+      <button id="play" class="primary">▶ play</button>
+      <button id="stop" disabled>■ stop</button>
+    </div>
+  </div>
 
-<canvas id="graph" width="900" height="180"></canvas>
-<p class="note">
-  Blue = raw dial · <span style="color:var(--warm)">amber</span> = lag-shifted
-  (what gets saved). Backshift = <code id="lag">2</code> bars — the scenario's
-  <code>capture.lag_bars</code>.
-</p>
+  <div class="row" style="align-items:flex-start; gap:28px">
+    <div class="kv" id="runmeta" style="min-width:230px"></div>
+    <div style="flex:1; min-width:220px">
+      <div class="dim" style="margin-bottom:4px">scope toggles <span class="dim">(optional side-info)</span></div>
+      <div class="row" id="scopes" style="margin:0"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="dim">satisfaction</span>
+    <input id="dial" type="range" min="-1" max="1" step="0.01" value="0">
+    <span class="big" id="dialval">0.00</span>
+  </div>
+
+  <canvas id="graph" width="1000" height="180"></canvas>
+  <p class="note" style="margin-top:8px">
+    <span style="color:var(--raw)">■ raw dial</span> ·
+    <span class="warm">■ lag-shifted (what gets saved)</span> ·
+    backshift <code id="lag">2</code> bars (<code>capture.lag_bars</code>). One sample per bar (D8).
+  </p>
+
+  <div class="row">
+    <button id="save">save labeled run</button>
+    <button id="clear">clear dial</button>
+    <span id="status" class="dim"></span>
+  </div>
+</div>
 
 <script>
 const $ = id => document.getElementById(id);
-const LAG = 2;                 // scenario.capture.lag_bars; agent reads from /scenarios
-let bar = 0, raw = [];         // raw [bar, value] samples
-const cv = $('graph'), ctx = cv.getContext('2d');
+const state = {
+  scenarios: [], scenario: null, runs: [], idx: 0,
+  lag: 2, raw: [],           // raw [bar, value] samples for the current run
+  playing: false, audio: null, nodes: [], raf: 0, startT: 0, lastBar: -1,
+};
 
-$('dial').addEventListener('input', e => $('dialval').textContent = (+e.target.value).toFixed(2));
+// ---- data ----------------------------------------------------------------
+async function getJSON(url, body) {
+  const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {};
+  const r = await fetch(url, opt);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
 
-// simulate a per-bar sampler so the graph is alive without playback wired.
-setInterval(() => {
-  raw.push([bar, +$('dial').value]);
-  bar++;
-  $('status').textContent = `run 0 · bar ${bar} · dial ${(+$('dial').value).toFixed(2)}`;
+async function loadScenarios() {
+  state.scenarios = await getJSON('/scenarios');
+  const sel = $('scenario'); sel.innerHTML = '';
+  state.scenarios.forEach(s => { const o = document.createElement('option');
+    o.value = s.scenario_id; o.textContent = s.scenario_id; sel.appendChild(o); });
+  if (state.scenarios.length) selectScenario(state.scenarios[0].scenario_id);
+}
+
+function selectScenario(sid) {
+  state.scenario = state.scenarios.find(s => s.scenario_id === sid);
+  state.lag = (state.scenario.capture && state.scenario.capture.lag_bars) ?? 2;
+  $('lag').textContent = state.lag;
+  const axes = Object.keys(state.scenario.parameter_space.axes || {});
+  $('scenmeta').textContent = `${state.scenario.target || 'general'} · ${axes.length} axes: ${axes.join(', ')}`;
+}
+
+// ---- sweep ---------------------------------------------------------------
+async function doSweep() {
+  stopPlayback();
+  $('sweepinfo').textContent = 'generating…';
+  try {
+    const res = await getJSON('/sweep', {
+      scenario_id: state.scenario.scenario_id,
+      n: +$('n').value, method: $('method').value, seed: +$('seed').value,
+    });
+    state.runs = res.runs; state.idx = 0;
+    $('sweepinfo').textContent = `${res.count} runs ready`;
+    $('runpanel').style.display = '';
+    showRun();
+  } catch (e) { $('sweepinfo').innerHTML = `<span style="color:var(--bad)">${e.message}</span>`; }
+}
+
+function showRun() {
+  stopPlayback();
+  const r = state.runs[state.idx];
+  state.raw = []; state.lastBar = -1;
+  $('runidx').textContent = `run ${state.idx+1}/${state.runs.length}`;
+  const s = r.summary || {};
+  const notes = Object.entries(s.notes||{}).map(([k,v]) => `${k} ${v}`).join(' · ');
+  $('runmeta').innerHTML = `
+    <b>bars</b><span>${r.bars} · ${r.beats_per_bar}/4 · ${r.bpm} bpm</span>
+    <b>surface</b><span>${s.surface ?? '–'}</span>
+    <b>end key</b><span>${s.end_key ?? '–'} · ${s.modulations ?? 0} mod</span>
+    <b>notes</b><span>${notes}</span>
+    <b>run_id</b><span class="dim">${r.run_id.slice(0,16)}…</span>`;
+  // scope chips = the parts present in this run (D10 part-scopes; optional).
+  const parts = Object.keys(r.events || {});
+  $('scopes').innerHTML = parts.map(p =>
+    `<label class="chip"><input type="checkbox" value="${p}">${p}</label>`).join('');
+  $('prev').disabled = state.idx === 0;
+  $('nextrun').disabled = state.idx === state.runs.length-1;
+  $('status').textContent = '';
   draw();
-}, 500);
-
-function shift(samples, lag) {           // mirrors wont/capture.py compensate_lag
-  return samples.map(([b, v]) => [Math.max(0, b - lag), v]);
 }
 
+// ---- WebAudio playback ---------------------------------------------------
+const PART_TONE = {                     // (waveform, gain, attack, release)
+  chords:  ['triangle', 0.16, 0.02, 0.30],
+  bass:    ['sine',     0.28, 0.01, 0.18],
+  topline: ['sawtooth', 0.14, 0.01, 0.14],
+};
+function midiHz(m){ return 440 * Math.pow(2, (m-69)/12); }
+
+function playNote(ac, out, wave, freq, t0, dur, gain, atk, rel, vel) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = wave; o.frequency.value = freq;
+  const peak = gain * (vel/127);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(peak, t0+atk);
+  g.gain.setValueAtTime(peak, Math.max(t0+atk, t0+dur-rel));
+  g.gain.linearRampToValueAtTime(0, t0+dur);
+  o.connect(g).connect(out); o.start(t0); o.stop(t0+dur+0.02);
+  state.nodes.push(o);
+}
+function playDrum(ac, out, midi, t0, vel) {   // noise burst, pitch-ish by midi
+  const len = 0.12, sr = ac.sampleRate, buf = ac.createBuffer(1, sr*len, sr);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/d.length, midi<40?1.5:4);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const bp = ac.createBiquadFilter(); bp.type = midi<40?'lowpass':'highpass';
+  bp.frequency.value = midi<40 ? 220 : 3000;
+  const g = ac.createGain(); g.gain.value = 0.22*(vel/127);
+  src.connect(bp).connect(g).connect(out); src.start(t0);
+  state.nodes.push(src);
+}
+
+function startPlayback() {
+  const r = state.runs[state.idx];
+  const ac = new (window.AudioContext||window.webkitAudioContext)();
+  state.audio = ac; state.nodes = []; state.raw = []; state.lastBar = -1;
+  const master = ac.createGain(); master.gain.value = 0.9; master.connect(ac.destination);
+  const spb = 60 / r.bpm;                       // seconds per beat
+  const t0 = ac.currentTime + 0.08;
+  state.startT = t0; state.spb = spb; state.beatsPerBar = r.beats_per_bar;
+  let end = 0;
+  for (const [part, evs] of Object.entries(r.events)) {
+    for (const [start, dur, midi, vel] of evs) {
+      const at = t0 + start*spb, d = dur*spb;
+      if (part === 'drums') playDrum(ac, master, midi, at, vel);
+      else { const [w,g,a,rl] = PART_TONE[part] || PART_TONE.chords;
+             playNote(ac, master, w, midiHz(midi), at, d, g, a, rl, vel); }
+      end = Math.max(end, start*spb + d);
+    }
+  }
+  state.endT = t0 + end + 0.1;
+  state.playing = true;
+  $('play').disabled = true; $('stop').disabled = false;
+  tick();
+}
+
+function tick() {
+  const ac = state.audio; if (!ac || !state.playing) return;
+  const elapsed = ac.currentTime - state.startT;
+  const bar = Math.floor(elapsed / (state.beatsPerBar * state.spb));
+  const totalBars = state.runs[state.idx].bars;
+  if (elapsed >= 0 && bar > state.lastBar && bar < totalBars) {
+    // sample the held dial ONCE per bar (D8), for every bar crossed.
+    for (let b = state.lastBar+1; b <= bar; b++) state.raw.push([b, +$('dial').value]);
+    state.lastBar = bar;
+    draw();
+  }
+  $('status').textContent = `playing · bar ${Math.min(bar+1,totalBars)}/${totalBars} · dial ${(+$('dial').value).toFixed(2)}`;
+  if (ac.currentTime >= state.endT) { stopPlayback(); $('status').textContent = `done · ${state.raw.length} bars captured`; return; }
+  state.raf = requestAnimationFrame(tick);
+}
+
+function stopPlayback() {
+  if (state.raf) cancelAnimationFrame(state.raf), state.raf = 0;
+  state.nodes.forEach(n => { try { n.stop(); } catch(e){} });
+  state.nodes = [];
+  if (state.audio) { try { state.audio.close(); } catch(e){} state.audio = null; }
+  state.playing = false;
+  $('play').disabled = false; $('stop').disabled = true;
+  draw();
+}
+
+// ---- graph ---------------------------------------------------------------
+function shift(samples, lag){ return samples.map(([b,v]) => [Math.max(0,b-lag), v]); }
 function draw() {
+  const cv = $('graph'), ctx = cv.getContext('2d');
   const W = cv.width, H = cv.height, mid = H/2;
+  const bars = state.runs.length ? state.runs[state.idx].bars : 16;
   ctx.clearRect(0,0,W,H);
-  ctx.strokeStyle = '#2a2933'; ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(W,mid); ctx.stroke();
-  const n = Math.max(bar, 16), dx = W/n, y = v => mid - v*(H/2-8);
-  const line = (pts, color) => {
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
-    pts.forEach(([b,v],i) => { const X=b*dx, Y=y(v); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); });
+  // grid
+  ctx.strokeStyle = '#20202c'; ctx.lineWidth = 1;
+  for (let b=0;b<=bars;b++){ const x=b/bars*W; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  ctx.strokeStyle = '#34333f'; ctx.beginPath(); ctx.moveTo(0,mid); ctx.lineTo(W,mid); ctx.stroke();
+  const dx = W/bars, y = v => mid - v*(mid-10);
+  const line = (pts, color, w) => {
+    if (!pts.length) return;
+    ctx.strokeStyle = color; ctx.lineWidth = w; ctx.beginPath();
+    pts.forEach(([b,v],i) => { const X=b*dx+dx/2, Y=y(v); i?ctx.lineTo(X,Y):ctx.moveTo(X,Y); });
     ctx.stroke();
+    pts.forEach(([b,v]) => { ctx.fillStyle=color; ctx.beginPath(); ctx.arc(b*dx+dx/2,y(v),2.5,0,7); ctx.fill(); });
   };
-  line(raw, '#6ea8ff');                  // raw dial
-  line(shift(raw, LAG), '#ffcf8c');      // lag-compensated (saved)
+  line(state.raw, getComputedStyle(document.documentElement).getPropertyValue('--raw').trim(), 1.5);
+  line(shift(state.raw, state.lag), getComputedStyle(document.documentElement).getPropertyValue('--warm').trim(), 2.5);
+  // playhead
+  if (state.playing && state.audio) {
+    const elapsed = state.audio.currentTime - state.startT;
+    const barf = elapsed / (state.beatsPerBar * state.spb);
+    if (barf >= 0) { const x = Math.min(barf,bars)/bars*W;
+      ctx.strokeStyle = '#ffffff55'; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  }
 }
 
-$('next').onclick = () => { /* TODO(agent): POST /sweep, load next GeneratedRun */
-  bar = 0; raw = []; draw(); $('status').textContent = 'run advanced (stub)'; };
-$('save').onclick = () => { /* TODO(agent): POST /save {raw samples, scopes} */
-  $('status').textContent = `would save ${raw.length} samples (lag ${LAG}) → scenario runs/`; };
-$('play').onclick = () => { $('status').textContent = 'playback is agent-wired (WebAudio, per Wend)'; };
+// ---- save ----------------------------------------------------------------
+async function doSave() {
+  const r = state.runs[state.idx];
+  if (!state.raw.length) { $('status').innerHTML = '<span style="color:var(--bad)">play first — no dial samples to save</span>'; return; }
+  const scopes = [...document.querySelectorAll('#scopes input:checked')].map(c => c.value);
+  try {
+    const res = await getJSON('/save', { run_id: r.run_id, samples: state.raw, scopes });
+    $('status').innerHTML = `<span style="color:var(--ok)">saved → ${res.saved}</span>`;
+  } catch (e) { $('status').innerHTML = `<span style="color:var(--bad)">${e.message}</span>`; }
+}
+
+// ---- wiring --------------------------------------------------------------
+$('scenario').onchange = e => selectScenario(e.target.value);
+$('sweep').onclick = doSweep;
+$('prev').onclick = () => { if (state.idx>0){ state.idx--; showRun(); } };
+$('nextrun').onclick = () => { if (state.idx<state.runs.length-1){ state.idx++; showRun(); } };
+$('play').onclick = startPlayback;
+$('stop').onclick = () => { stopPlayback(); $('status').textContent = `stopped · ${state.raw.length} bars captured`; };
+$('save').onclick = doSave;
+$('clear').onclick = () => { state.raw = []; state.lastBar = -1; draw(); $('status').textContent = 'dial cleared'; };
+$('dial').addEventListener('input', e => { $('dialval').textContent = (+e.target.value).toFixed(2);
+  if (!state.playing) draw(); });
+
+loadScenarios().catch(e => $('sweepinfo').textContent = 'failed to load scenarios: ' + e.message);
 draw();
 </script>

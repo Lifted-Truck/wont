@@ -37,38 +37,49 @@ so the learner serves *any* Tonality client — Wend is the first, not the only.
 
 ## Status
 
-**Harness-scaffold phase.** Julian greenlit wont's own GUI + generator +
-scenarios (2026-07-08, D13–D15); the Wend agent prepared the launch pad. **Start
-at [HANDOFF.md](HANDOFF.md).** Ready and tested: the labeled-run schema + loader,
-the satisfaction **time-shift** (`capture.py`), the **scenario** schema
-(`scenario.py`, draft), and the deterministic quasi/random **sweep sampler**
-(`generate.py`). Stubs for the build-agent: the Wend client adapter
-(`clients/wend.py`), the audition server + UI (`harness/`). **The learner itself
-is still deliberately not built** — dialogue-first; per D11 its first slice is
-the synthetic recovery harness, not the ML.
+**Audition harness BUILT** (2026-07-08, D13–D17); the learner is next and
+**gated**. Start at [ROADMAP.md](ROADMAP.md) for what's next and the gate.
+Built and tested end to end: the labeled-run schema + loader, the satisfaction
+**time-shift** (`capture.py`), the **scenario** schema (`scenario.py`, frozen
+`.1`), the deterministic quasi/random **sweep sampler** (`generate.py`), the
+**Wend client** (`clients/wend.py`, in-process transport, D16), and the
+**audition server + UI** (`harness/` — sweep, WebAudio playback, dial capture,
+scenario-tagged save). **The learner itself is still deliberately not built** —
+dialogue-first; per D11 its first slice is the synthetic recovery harness, not
+the ML. The Tonality intake dialogue that gated it has resolved; the remaining
+gate is Julian's go-ahead.
+
+### Run the audition harness
+
+```
+~/Documents/Tonality/.venv/bin/python -m harness.serve   # -> http://127.0.0.1:8771
+```
 
 ## Layout
 
 ```
 README.md      this file
-HANDOFF.md     >>> START HERE: the build-agent brief (mission, ready vs stubs, plan)
+ROADMAP.md     >>> START HERE: phase-gated sequence + the learner gate
 CLAUDE.md      agent pointers + gotchas
 DESIGN.md      the design document (scopes, schemas, credit assignment, v1 plan)
-DECISIONS.md   append-only decision log (D1–D15)
+DECISIONS.md   append-only decision log (D1-D19)
+HANDOFF.md     the 2026-07-08 build-agent brief (historical launch context)
 INDEX.md       knowledge-loop retrieval map (see CLAUDE.md's loop block)
 LIBRARY.md     knowledge-loop lesson store
+verify         the oracle: ./verify fast | full | report
 wont/          the package
-  schema.py    LabeledRun — the labeled-run schema (frozen .1; validation, round-trip)
+  schema.py    LabeledRun -- the labeled-run schema (frozen .1; validation, round-trip)
   loader.py    load/save labeled runs and corpora
   capture.py   dial signal -> lag-compensated SatisfactionCurve (the time-shift, D15)
-  scenario.py  Scenario — named training context (draft schema, D14)
+  scenario.py  Scenario -- named training context (frozen .1, D14/D17)
   generate.py  ParameterSpace + deterministic quasi/random sampler + Client seam (D13)
-  clients/     generator adapters (wend.py — STUB, the only place that drives Wend)
-harness/       wont's audition GUI (serve.py orchestration scaffold + index.html skeleton)
-scenarios/     scenario JSONs (lofi-lounge.json — worked example)
+  clients/     generator adapters (wend.py -- the only place that drives Wend, D16)
+harness/       wont's audition GUI (serve.py HTTP server + index.html audition UI)
+scenarios/     scenario JSONs (lofi-lounge.json -- worked example)
 tests/
   test_schema.py     labeled-run round-trip + validation
   test_scaffold.py   capture / scenario / sampler / assembler (2026-07-08)
+  test_harness.py    Wend client seam, sweep/save, full capture round-trip
 ```
 
 ## Running the tests

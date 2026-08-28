@@ -1,10 +1,13 @@
-"""scenario.py — a named training context (DRAFT schema, agent to finalize).
+"""scenario.py — a named training context (schema FINAL as of the harness build).
 
-> Introduced by Julian, 2026-07-08 (DECISIONS.md D14). This schema is a
-> SCAFFOLD: it encodes the shape of a scenario so the wont build-agent has a
-> concrete starting contract, but — unlike the frozen labeled-run schema — it
-> is explicitly open for the agent to revise as the GUI/generator take form.
-> Version stays a DRAFT tag until the agent commits to it.
+> Introduced by Julian, 2026-07-08 (DECISIONS.md D14). The scaffold left this a
+> DRAFT for the build-agent to revise as the GUI/generator took form; the
+> audition harness (D13) exercised every field end-to-end — seed_rulesets ->
+> WendClient, parameter_space -> the sweep, capture -> the time-shift, client /
+> engine_pins / fingerprint -> the saved LabeledRun's provenance — and the shape
+> held with no changes. So it is now frozen at `wont.scenario.1` (D17). Future
+> needs bump the version (e.g. `.2`); the fingerprint excludes schema_version,
+> so freezing does not disturb runs already tagged with a scenario fingerprint.
 
 A **scenario** is a bounded preference-training context: "teach wont what I like
 *for lo-fi lounge*", starting from predefined Tonality/Wend rulesets and
@@ -33,7 +36,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 
-SCHEMA_VERSION = "wont.scenario.1-draft"  # DRAFT — agent finalizes before use
+SCHEMA_VERSION = "wont.scenario.1"  # FINAL (D17) — frozen; changes bump the version
 
 
 class ScenarioError(ValueError):
